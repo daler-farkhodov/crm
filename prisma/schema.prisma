@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+//////////////////////
+// ENUMS
+//////////////////////
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT_SERIOUS
+  ABSENT_NON_SERIOUS
+  SCHOOL_CLOSED
+  CLASS_CANCELED
+  TRIAL
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum LedgerType {
+  INVOICE
+  PAYMENT
+  CREDIT
+  DEBIT
+  ADJUSTMENT
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+}
+
+//////////////////////
+// USERS & ROLES
+//////////////////////
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  fullName  String
+  role      UserRole
+  createdAt DateTime @default(now())
+
+  teacher   Teacher?
+}
+
+//////////////////////
+// CORE ENTITIES
+//////////////////////
+
+model Student {
+  id         String   @id @default(uuid())
+  fullName   String
+  startDate  DateTime
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  classes    StudentClass[]
+  attendance Attendance[]
+  invoices   Invoice[]
+  ledger     Ledger[]
+}
+
+model Teacher {
+  id        String   @id @default(uuid())
+  fullName  String
+  createdAt DateTime @default(now())
+
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id])
+
+  classes    ClassTeacher[]
+  attendance Attendance[]
+  earnings   TeacherEarnings[]
+}
+
+model Class {
+  id              String   @id @default(uuid())
+  name            String
+  pricePerMonth   Float
+  createdAt       DateTime @default(now())
+
+  students   StudentClass[]
+  teachers   ClassTeacher[]
+  attendance Attendance[]
+  closures   SchoolClosure[]
+}
+
+//////////////////////
+// RELATION TABLES
+//////////////////////
+
+model StudentClass {
+  id        String    @id @default(uuid())
+  studentId String
+  classId   String
+  startDate DateTime
+  endDate   DateTime?
+
+  student Student @relation(fields: [studentId], references: [id])
+  class   Class   @relation(fields: [classId], references: [id])
+}
+
+model ClassTeacher {
+  id          String @id @default(uuid())
+  classId     String
+  teacherId   String
+  percentage  Float
+
+  class   Class   @relation(fields: [classId], references: [id])
+  teacher Teacher @relation(fields: [teacherId], references: [id])
+}
+
+//////////////////////
+// ATTENDANCE
+//////////////////////
+
+model Attendance {
+  id        String           @id @default(uuid())
+  studentId String
+  classId   String
+  teacherId String?
+  date      DateTime
+  status    AttendanceStatus
+  isTrial   Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  student Student  @relation(fields: [studentId], references: [id])
+  class   Class    @relation(fields: [classId], references: [id])
+  teacher Teacher? @relation(fields: [teacherId], references: [id])
+}
+
+//////////////////////
+// BILLING
+//////////////////////
+
+model Invoice {
+  id            String        @id @default(uuid())
+  studentId     String
+  periodStart   DateTime
+  periodEnd     DateTime
+  totalAmount   Float
+  creditApplied Float
+  finalAmount   Float
+  status        InvoiceStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  student       Student @relation(fields: [studentId], references: [id])
+  ledgerEntries Ledger[]
+}
+
+model Ledger {
+  id            String     @id @default(uuid())
+  studentId     String
+  type          LedgerType
+  amount        Float
+  referenceId   String?
+  referenceType String?
+  createdAt     DateTime   @default(now())
+
+  student Student  @relation(fields: [studentId], references: [id])
+  invoice Invoice? @relation(fields: [referenceId], references: [id])
+}
+
+//////////////////////
+// TEACHER PAYMENTS
+//////////////////////
+
+model TeacherEarnings {
+  id          String   @id @default(uuid())
+  teacherId   String
+  month       Int
+  year        Int
+  totalAmount Float
+  isPaid      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  teacher Teacher @relation(fields: [teacherId], references: [id])
+}
+
+//////////////////////
+// ACCOUNTING
+//////////////////////
+
+model Expense {
+  id        String   @id @default(uuid())
+  title     String
+  amount    Float
+  date      DateTime
+  category  String?
+  createdAt DateTime @default(now())
+}
+
+//////////////////////
+// SCHOOL CLOSURES
+//////////////////////
+
+model SchoolClosure {
+  id      String   @id @default(uuid())
+  date    DateTime
+  classId String?
+  reason  String?
+
+  class Class? @relation(fields: [classId], references: [id])
+}
+
+//////////////////////
+// AUDIT LOGS
+//////////////////////
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  createdAt DateTime @default(now())
+}
