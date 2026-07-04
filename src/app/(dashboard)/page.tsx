@@ -31,7 +31,7 @@ import { isLikelyDbConnectivityIssue } from "@/lib/is-prisma-db-error";
 import { prisma } from "@/lib/prisma";
 
 function money(n: number) {
-  return `$${n.toFixed(0)}`;
+  return `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(0)}`;
 }
 
 type Search = { from?: string; to?: string };
