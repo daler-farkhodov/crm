@@ -3,7 +3,9 @@
 import { format } from "date-fns";
 import { useMemo, useState, useTransition } from "react";
 import { createStudentWithEnrollments } from "@/app/actions/students";
+import { UzPhoneInput } from "@/components/UzPhoneInput";
 import { Input, Label, Submit } from "@/components/ui";
+import { useT } from "@/i18n/context";
 
 type ClassOption = { id: string; name: string };
 
@@ -12,6 +14,7 @@ function defaultDate() {
 }
 
 export function StudentCreateForm({ classes }: { classes: ClassOption[] }) {
+  const tt = useT();
   const [fullName, setFullName] = useState("");
   const [rows, setRows] = useState<
     { id: string; classId: string; startDate: string }[]
@@ -54,7 +57,7 @@ export function StudentCreateForm({ classes }: { classes: ClassOption[] }) {
     );
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const enrollments = rows
@@ -62,13 +65,17 @@ export function StudentCreateForm({ classes }: { classes: ClassOption[] }) {
       .map((row) => ({ classId: row.classId, startDate: row.startDate }));
 
     if (enrollments.length === 0) {
-      setError("Add at least one class and pick a start date for each.");
+      setError(tt("students.form.validationEnrollments"));
       return;
     }
+
+    const fd = new FormData(e.currentTarget);
+    const phoneVal = String(fd.get("phone") || "").trim() || undefined;
 
     startTransition(async () => {
       const res = await createStudentWithEnrollments({
         fullName,
+        phone: phoneVal,
         enrollments,
       });
       if (res?.error) setError(res.error);
@@ -78,7 +85,7 @@ export function StudentCreateForm({ classes }: { classes: ClassOption[] }) {
   if (classes.length === 0) {
     return (
       <p className="text-sm text-slate-600">
-        Create at least one class before adding students.
+        {tt("students.form.needClassFirst")}
       </p>
     );
   }
@@ -86,47 +93,54 @@ export function StudentCreateForm({ classes }: { classes: ClassOption[] }) {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div>
-        <Label>Full name</Label>
+        <Label>{tt("students.modal.fullName")}</Label>
         <Input
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           required
-          placeholder="Jordan Lee"
+          placeholder={tt("students.modal.fullNamePlaceholder")}
           autoComplete="name"
         />
       </div>
 
       <div>
+        <Label>Phone number</Label>
+        <UzPhoneInput name="phone" />
+      </div>
+
+      <div>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Classes (at least one)
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {tt("students.modal.classesHeading")}
           </span>
           <button
             type="button"
             onClick={addRow}
-            className="text-sm font-medium text-accent-blue hover:underline"
+            className="text-sm font-medium text-accent-blue hover:underline dark:text-blue-400"
           >
-            + Add class
+            {tt("students.modal.addClassRow")}
           </button>
         </div>
         <div className="space-y-3">
           {rows.map((row, index) => (
             <div
               key={row.id}
-              className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-slate-50/80 p-3"
+              className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-600 dark:bg-slate-800/50"
             >
               <div className="min-w-[10rem] flex-1">
-                <Label>Class {index + 1}</Label>
+                <Label>
+                  {tt("students.modal.classN")} {index + 1}
+                </Label>
                 <select
                   required
                   value={row.classId}
                   onChange={(e) =>
                     updateRow(row.id, { classId: e.target.value })
                   }
-                  className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-slate-900 focus:border-accent-blue focus:outline-none focus:ring-2 focus:ring-accent-blue/25"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-accent-blue focus:outline-none focus:ring-2 focus:ring-accent-blue/25 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                 >
                   <option value="" disabled>
-                    Select class
+                    {tt("students.modal.selectClass")}
                   </option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -136,7 +150,7 @@ export function StudentCreateForm({ classes }: { classes: ClassOption[] }) {
                 </select>
               </div>
               <div className="w-44">
-                <Label>Start in class</Label>
+                <Label>{tt("students.modal.startInClass")}</Label>
                 <Input
                   type="date"
                   required
@@ -152,15 +166,14 @@ export function StudentCreateForm({ classes }: { classes: ClassOption[] }) {
                   onClick={() => removeRow(row.id)}
                   className="mb-0.5 text-xs text-red-700 underline hover:text-red-900"
                 >
-                  Remove
+                  {tt("students.modal.removeRow")}
                 </button>
               ) : null}
             </div>
           ))}
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          The student&apos;s profile start date is set to the earliest class
-          start you enter.
+          {tt("students.form.profileStartHint")}
         </p>
       </div>
 
@@ -170,8 +183,8 @@ export function StudentCreateForm({ classes }: { classes: ClassOption[] }) {
         </p>
       ) : null}
 
-      <Submit variant="orange" disabled={!canSubmit || pending}>
-        {pending ? "Creating…" : "Create student"}
+      <Submit variant="blue" disabled={!canSubmit || pending}>
+        {pending ? tt("students.modal.creating") : tt("students.modal.create")}
       </Submit>
     </form>
   );

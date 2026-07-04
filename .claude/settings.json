@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/dalerfarkhodov/desktop/crm && lsof -ti :3001 | xargs kill -9 2>/dev/null; npx prisma generate --silent 2>/dev/null; npm run dev:3001 > /tmp/crm-dev.log 2>&1 &",
+            "timeout": 30,
+            "statusMessage": "Restarting dev server..."
+          }
+        ]
+      }
+    ]
+  }
+}

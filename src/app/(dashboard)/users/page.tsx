@@ -1,35 +1,38 @@
 import { UserRole } from "@prisma/client";
 import { createUser } from "@/app/actions/operations";
+import { Card, Input, Label, PageTitle, Submit, Table } from "@/components/ui";
+import { getLocale } from "@/i18n/locale";
+import { getMessages } from "@/i18n/messages";
+import { t } from "@/i18n/t";
 import { prisma } from "@/lib/prisma";
-import { Card, Input, Label, PageHeader, Submit, Table } from "@/components/ui";
 
 export default async function UsersPage() {
+  const locale = await getLocale();
+  const m = getMessages(locale);
   const rows = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
 
   return (
     <div>
-      <PageHeader
-        title="Users"
-        subtitle="Accounts for admins and linked teachers."
-        accent="blue"
-      />
+      <PageTitle title={t(m, "users.title")} subtitle={t(m, "users.subtitle")} />
       <Card className="mb-8">
-        <h2 className="mb-4 text-sm font-semibold text-slate-800">Invite user</h2>
+        <h2 className="mb-4 text-sm font-semibold text-slate-800">
+          {t(m, "users.inviteUser")}
+        </h2>
         <form action={createUser} className="grid gap-3 md:grid-cols-3">
           <div>
-            <Label>Email</Label>
+            <Label>{t(m, "users.email")}</Label>
             <Input name="email" type="email" required />
           </div>
           <div>
-            <Label>Full name</Label>
+            <Label>{t(m, "users.fullName")}</Label>
             <Input name="fullName" required />
           </div>
           <div>
-            <Label>Role</Label>
+            <Label>{t(m, "users.role")}</Label>
             <select
               name="role"
               required
-              className="w-full rounded-lg border border-line px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-2 text-sm"
             >
               {Object.values(UserRole).map((r) => (
                 <option key={r} value={r}>
@@ -39,12 +42,18 @@ export default async function UsersPage() {
             </select>
           </div>
           <div className="md:col-span-3">
-            <Submit variant="blue">Create</Submit>
+            <Submit variant="blue">{t(m, "users.create")}</Submit>
           </div>
         </form>
       </Card>
       <Table
-        headers={["Name", "Email", "Role", "Created"]}
+        emptyMessage={t(m, "ui.noRecords")}
+        headers={[
+          t(m, "users.colName"),
+          t(m, "users.colEmail"),
+          t(m, "users.colRole"),
+          t(m, "users.colCreated"),
+        ]}
         rows={rows.map((u) => [
           u.fullName,
           u.email,

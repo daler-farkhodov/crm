@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fallback if Tailwind preflight/build ever fails — keeps a readable base */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
@@ -12,8 +17,21 @@
   --border: #e2e8f0;
 }
 
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --accent-orange-soft: #431407;
+  --accent-blue-soft: #172554;
+  --border: #334155;
+}
+
 body {
   color: var(--foreground);
-  background: var(--background);
+  background: #f1f5f9;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.dark body {
+  background: #020617;
+  color: #f1f5f9;
 }

@@ -1,159 +1,169 @@
-import {
-  assignClassTeacher,
-  createClass,
-  removeClassTeacher,
-  updateClass,
-  updateClassTeacherShare,
-} from "@/app/actions/classes";
+import Link from "next/link";
+import { Eye } from "lucide-react";
+import { AddClassModal } from "@/components/AddClassModal";
+import { PageTitle } from "@/components/ui";
+import { getLocale } from "@/i18n/locale";
+import { getMessages } from "@/i18n/messages";
+import { t } from "@/i18n/t";
 import { prisma } from "@/lib/prisma";
-import { Card, Input, Label, PageHeader, Submit, Table } from "@/components/ui";
+
+function formatTime(hour: number, minute: number): string {
+  return `${hour}:${String(minute).padStart(2, "0")}`;
+}
+
+function teacherNames(
+  teachers: { teacher: { fullName: string } }[],
+): string {
+  if (teachers.length === 0) return "—";
+  return [...teachers]
+    .sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName))
+    .map((x) => x.teacher.fullName)
+    .join(", ");
+}
 
 export default async function ClassesPage() {
-  const [classes, teachers] = await Promise.all([
+  const locale = await getLocale();
+  const m = getMessages(locale);
+  const [classes, rooms, classCount, enrollmentCount, teacherLinkCount] = await Promise.all([
     prisma.class.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { classNumber: "asc" },
       include: {
         teachers: { include: { teacher: true } },
-        students: { where: { endDate: null }, include: { student: true } },
+        students: { where: { endDate: null } },
+        room: true,
       },
     }),
-    prisma.teacher.findMany({ orderBy: { fullName: "asc" } }),
+    prisma.room.findMany({ where: { isHidden: false }, orderBy: { name: "asc" } }),
+    prisma.class.count(),
+    prisma.studentClass.count({ where: { endDate: null } }),
+    prisma.classTeacher.count(),
   ]);
+
+  const metricCard =
+    "rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900";
 
   return (
     <div>
-      <PageHeader
-        title="Classes"
-        subtitle="Catalog, roster size, and revenue share per teacher."
-        accent="orange"
+      <PageTitle
+        title={t(m, "classes.title")}
+        subtitle={t(m, "classes.subtitle")}
+        action={<AddClassModal rooms={rooms} />}
       />
-      <Card className="mb-8">
-        <h2 className="mb-4 text-sm font-semibold text-slate-800">Add class</h2>
-        <form action={createClass} className="grid gap-3 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <Label>Name</Label>
-            <Input name="name" required placeholder="Algebra I" />
-          </div>
-          <div>
-            <Label>Price / month</Label>
-            <Input name="pricePerMonth" type="number" step="0.01" required />
-          </div>
-          <div className="sm:col-span-3">
-            <Submit variant="orange">Create</Submit>
-          </div>
-        </form>
-      </Card>
-      <div className="space-y-8">
-        {classes.map((c) => (
-          <Card key={c.id}>
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900">{c.name}</h3>
-                <p className="text-sm text-slate-600">
-                  ${c.pricePerMonth.toFixed(2)} / month ·{" "}
-                  {c.students.length} active seats
-                </p>
-              </div>
-              <form action={updateClass} className="flex flex-wrap gap-2">
-                <input type="hidden" name="id" value={c.id} />
-                <Input name="name" defaultValue={c.name} required />
-                <Input
-                  name="pricePerMonth"
-                  type="number"
-                  step="0.01"
-                  defaultValue={c.pricePerMonth}
-                  required
-                  className="w-28"
-                />
-                <Submit variant="blue">Update</Submit>
-              </form>
-            </div>
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div>
-                <h4 className="mb-2 text-xs font-semibold uppercase text-slate-500">
-                  Teachers & share
-                </h4>
-                <Table
-                  headers={["Teacher", "%", ""]}
-                  rows={c.teachers.map((ct) => [
-                    ct.teacher.fullName,
-                    <form
-                      key={`p-${ct.id}`}
-                      action={updateClassTeacherShare}
-                      className="flex items-center gap-2"
-                    >
-                      <input type="hidden" name="id" value={ct.id} />
-                      <Input
-                        name="percentage"
-                        type="number"
-                        step="0.1"
-                        defaultValue={ct.percentage}
-                        required
-                        className="w-24"
-                      />
-                      <Submit variant="orange">Save</Submit>
-                    </form>,
-                    <form key={`r-${ct.id}`} action={removeClassTeacher}>
-                      <input type="hidden" name="id" value={ct.id} />
-                      <button
-                        type="submit"
-                        className="text-xs text-red-700 underline"
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <div className={metricCard}>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {t(m, "classes.metricAll")}
+          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {classCount}
+          </p>
+        </div>
+        <div className={metricCard}>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {t(m, "classes.metricEnrollments")}
+          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {enrollmentCount}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {t(m, "classes.metricEnrollmentsHint")}
+          </p>
+        </div>
+        <div className={metricCard}>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {t(m, "classes.metricTeachers")}
+          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {teacherLinkCount}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {t(m, "classes.metricTeachersHint")}
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+            {t(m, "classes.classList")}
+          </h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+            <thead className="bg-slate-50 dark:bg-slate-800/80">
+              <tr>
+                {[
+                  t(m, "classes.colId"),
+                  t(m, "classes.colClass"),
+                  t(m, "classes.colTeacher"),
+                  t(m, "classes.colRoom"),
+                  t(m, "classes.colHours"),
+                  t(m, "classes.colStudents"),
+                  t(m, "classes.colPrice"),
+                  t(m, "classes.colView"),
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
+              {classes.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-5 py-10 text-center text-sm text-slate-500 dark:text-slate-400"
+                  >
+                    {t(m, "classes.noneYet")}
+                  </td>
+                </tr>
+              ) : (
+                classes.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60"
+                  >
+                    <td className="whitespace-nowrap px-5 py-4 font-mono text-slate-700 dark:text-slate-300">
+                      #{c.classNumber}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
+                      {c.name}
+                    </td>
+                    <td className="max-w-[220px] truncate px-5 py-4 text-slate-600 dark:text-slate-400">
+                      {teacherNames(c.teachers)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-slate-700 dark:text-slate-300">
+                      {c.room?.name ?? <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-slate-700 dark:text-slate-300">
+                      {formatTime(c.startHour, c.startMinute)} - {formatTime(c.endHour, c.endMinute)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-slate-700 dark:text-slate-300">
+                      {c.students.length}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-slate-700 dark:text-slate-300">
+                      ${c.pricePerMonth.toFixed(0)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-right">
+                      <Link
+                        href={`/classes/${c.id}`}
+                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-600 hover:border-blue-300 hover:text-blue-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
+                        aria-label={`${t(m, "classes.viewAria")} ${c.name}`}
                       >
-                        Remove
-                      </button>
-                    </form>,
-                  ])}
-                />
-                <form
-                  action={assignClassTeacher}
-                  className="mt-3 flex flex-wrap items-end gap-2 border-t border-line pt-3"
-                >
-                  <input type="hidden" name="classId" value={c.id} />
-                  <div>
-                    <Label>Teacher</Label>
-                    <select
-                      name="teacherId"
-                      required
-                      className="rounded-lg border border-line px-2 py-2 text-sm"
-                    >
-                      {teachers.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.fullName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Share %</Label>
-                    <Input
-                      name="percentage"
-                      type="number"
-                      step="0.1"
-                      defaultValue={40}
-                      required
-                      className="w-24"
-                    />
-                  </div>
-                  <Submit variant="blue">Assign</Submit>
-                </form>
-              </div>
-              <div>
-                <h4 className="mb-2 text-xs font-semibold uppercase text-slate-500">
-                  Active students
-                </h4>
-                <ul className="text-sm text-slate-800">
-                  {c.students.length === 0 ? (
-                    <li className="text-slate-500">No active enrollments.</li>
-                  ) : (
-                    c.students.map((sc) => (
-                      <li key={sc.id}>{sc.student.fullName}</li>
-                    ))
-                  )}
-                </ul>
-              </div>
-            </div>
-          </Card>
-        ))}
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

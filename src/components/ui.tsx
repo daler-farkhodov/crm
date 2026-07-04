@@ -1,28 +1,27 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-export function PageHeader({
+/** Tutor-style page title (no accent bar). Optional right slot for actions. */
+export function PageTitle({
   title,
   subtitle,
-  accent,
+  action,
 }: {
   title: string;
   subtitle?: string;
-  accent: "orange" | "blue";
+  action?: ReactNode;
 }) {
-  const bar =
-    accent === "orange"
-      ? "bg-gradient-to-r from-accent-orange to-orange-400"
-      : "bg-gradient-to-r from-accent-blue to-sky-500";
   return (
-    <header className="mb-8">
-      <div className={`mb-3 h-1 w-16 rounded-full ${bar}`} />
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-        {title}
-      </h1>
-      {subtitle ? (
-        <p className="mt-1 max-w-2xl text-sm text-slate-600">{subtitle}</p>
-      ) : null}
-    </header>
+    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          {title}
+        </h1>
+        {subtitle ? (
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+        ) : null}
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
   );
 }
 
@@ -35,7 +34,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-line bg-white p-5 shadow-sm ${className}`}
+      className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 ${className}`}
     >
       {children}
     </div>
@@ -44,7 +43,7 @@ export function Card({
 
 export function Label({ children }: { children: ReactNode }) {
   return (
-    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
       {children}
     </label>
   );
@@ -54,7 +53,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-accent-blue/30 placeholder:text-slate-400 focus:border-accent-blue focus:ring-2 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 ${props.className ?? ""}`}
     />
   );
 }
@@ -63,7 +62,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-accent-blue focus:ring-2 focus:ring-accent-blue/30 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 ${props.className ?? ""}`}
     />
   );
 }
@@ -80,8 +79,8 @@ export function Submit({
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   const cls =
     variant === "blue"
-      ? "bg-accent-blue text-white hover:bg-blue-700"
-      : "bg-accent-orange text-white hover:bg-orange-600";
+      ? "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+      : "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-500 dark:hover:bg-orange-400";
   return (
     <button
       type="submit"
@@ -97,42 +96,47 @@ export function Submit({
 export function Table({
   headers,
   rows,
+  emptyMessage = "No records yet.",
 }: {
   headers: string[];
   rows: ReactNode[][];
+  emptyMessage?: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line">
-      <table className="min-w-full divide-y divide-line text-sm">
-        <thead className="bg-slate-50">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+        <thead className="bg-slate-50 dark:bg-slate-800/80">
           <tr>
-            {headers.map((h) => (
+            {headers.map((h, i) => (
               <th
-                key={h}
-                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                key={i}
+                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400"
               >
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-line bg-white">
+        <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
           {rows.length === 0 ? (
             <tr>
               <td
                 colSpan={headers.length}
-                className="px-4 py-6 text-center text-sm text-slate-500"
+                className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
               >
-                No records yet.
+                {emptyMessage}
               </td>
             </tr>
           ) : (
             rows.map((cells, i) => (
-              <tr key={i} className="hover:bg-slate-50/80">
+              <tr
+                key={i}
+                className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60"
+              >
                 {cells.map((c, j) => (
                   <td
                     key={j}
-                    className="whitespace-nowrap px-4 py-3 text-slate-800"
+                    className="whitespace-nowrap px-4 py-3 text-slate-800 dark:text-slate-200"
                   >
                     {c}
                   </td>

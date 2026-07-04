@@ -1,8 +1,10 @@
 import {
   AttendanceStatus,
+  ClassRole,
   InvoiceStatus,
   LedgerType,
   PrismaClient,
+  SalaryType,
   UserRole,
 } from "@prisma/client";
 
@@ -10,16 +12,22 @@ const prisma = new PrismaClient();
 
 async function main() {
   await prisma.auditLog.deleteMany();
+  await prisma.teacherLedger.deleteMany();
+  await prisma.invoiceLine.deleteMany();
   await prisma.ledger.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.teacherEarnings.deleteMany();
   await prisma.expense.deleteMany();
+  await prisma.recurringExpense.deleteMany();
+  await prisma.assistantAttendance.deleteMany();
   await prisma.schoolClosure.deleteMany();
   await prisma.attendance.deleteMany();
+  await prisma.classTeacherOverride.deleteMany();
   await prisma.studentClass.deleteMany();
   await prisma.classTeacher.deleteMany();
   await prisma.student.deleteMany();
   await prisma.class.deleteMany();
+  await prisma.room.deleteMany();
   await prisma.teacher.deleteMany();
   await prisma.user.deleteMany();
 
@@ -46,10 +54,26 @@ async function main() {
     },
   });
 
+  // Assistant for the class, and a separate substitute teacher used below.
+  const assistant = await prisma.teacher.create({
+    data: { fullName: "Morgan Lee" },
+  });
+  const substitute = await prisma.teacher.create({
+    data: { fullName: "Taylor Brooks" },
+  });
+
+  const room = await prisma.room.create({
+    data: { name: "Math room" },
+  });
+
   const math = await prisma.class.create({
     data: {
       name: "Algebra I",
+      roomId: room.id,
+      startHour: 15,
+      endHour: 16,
       pricePerMonth: 120,
+      scheduleDays: ["MON", "WED", "FRI"],
     },
   });
 
@@ -57,7 +81,19 @@ async function main() {
     data: {
       classId: math.id,
       teacherId: teacher.id,
+      role: ClassRole.TEACHER,
+      salaryType: SalaryType.PERCENTAGE,
       percentage: 45,
+    },
+  });
+
+  const assistantClassTeacher = await prisma.classTeacher.create({
+    data: {
+      classId: math.id,
+      teacherId: assistant.id,
+      role: ClassRole.ASSISTANT,
+      salaryType: SalaryType.FIXED,
+      fixedAmount: 60,
     },
   });
 
@@ -66,6 +102,7 @@ async function main() {
       fullName: "Alex Kim",
       startDate: new Date("2025-09-01"),
       isActive: true,
+      nextPaymentDue: new Date("2026-05-01"),
     },
   });
 
@@ -74,6 +111,7 @@ async function main() {
       fullName: "Sam Patel",
       startDate: new Date("2025-09-15"),
       isActive: true,
+      nextPaymentDue: new Date("2026-04-01"),
     },
   });
 
@@ -113,6 +151,27 @@ async function main() {
     ],
   });
 
+  // Assistant was marked present for that session → accrues assistant pay.
+  await prisma.assistantAttendance.create({
+    data: {
+      classTeacherId: assistantClassTeacher.id,
+      date: day,
+      present: true,
+      recordedByTeacherId: teacher.id,
+    },
+  });
+
+  // A substitute covered the class on a different date.
+  await prisma.classTeacherOverride.create({
+    data: {
+      classId: math.id,
+      date: new Date("2026-03-25T10:00:00.000Z"),
+      originalTeacherId: teacher.id,
+      substituteTeacherId: substitute.id,
+      reason: "Teacher out sick",
+    },
+  });
+
   const invoice = await prisma.invoice.create({
     data: {
       studentId: studentA.id,
@@ -125,12 +184,26 @@ async function main() {
     },
   });
 
+  await prisma.invoiceLine.create({
+    data: {
+      invoiceId: invoice.id,
+      classId: math.id,
+      amount: 120,
+    },
+  });
+
   await prisma.ledger.createMany({
     data: [
       {
         studentId: studentA.id,
+        type: LedgerType.CREDIT,
+        amount: -10,
+        referenceType: "SeedAdjust",
+      },
+      {
+        studentId: studentA.id,
         type: LedgerType.INVOICE,
-        amount: 110,
+        amount: 120,
         referenceId: invoice.id,
         referenceType: "Invoice",
       },
@@ -159,6 +232,31 @@ async function main() {
       amount: 48.5,
       date: new Date("2026-03-20"),
       category: "Supplies",
+    },
+  });
+
+  // Teacher pre-payment (replaces the old TeacherAdvance model — Item 2).
+  await prisma.expense.create({
+    data: {
+      title: `Pre-payment — ${teacher.fullName}`,
+      amount: 100,
+      date: new Date("2026-03-10"),
+      teacherId: teacher.id,
+      deductMonth: 3,
+      deductYear: 2026,
+      isDeducted: false,
+      paymentMethod: "CASH",
+    },
+  });
+
+  await prisma.teacherLedger.create({
+    data: {
+      teacherId: teacher.id,
+      classId: math.id,
+      date: day,
+      type: "ACCRUAL",
+      amount: 4.5,
+      referenceId: invoice.id,
     },
   });
 

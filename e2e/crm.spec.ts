@@ -1,6 +1,17 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("LMS CRM", () => {
+  test("Next.js injects app CSS (guards unstyled UI regressions)", async ({ page }) => {
+    await page.goto("/");
+    const hasNextCss = await page.evaluate(() =>
+      [...document.querySelectorAll('link[rel="stylesheet"]')].some((el) => {
+        const href = (el as HTMLLinkElement).href ?? "";
+        return href.includes("/_next/");
+      }),
+    );
+    expect(hasNextCss).toBe(true);
+  });
+
   test("dashboard loads with module metrics", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
@@ -10,7 +21,9 @@ test.describe("LMS CRM", () => {
 
   test("navigation reaches core modules", async ({ page }) => {
     await page.goto("/students");
-    await expect(page.getByRole("heading", { name: "Students" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Students", exact: true }),
+    ).toBeVisible();
 
     await page.goto("/classes");
     await expect(page.getByRole("heading", { name: "Classes" })).toBeVisible();
@@ -35,6 +48,7 @@ test.describe("LMS CRM", () => {
   }) => {
     await page.goto("/students");
     const name = `E2E Student ${Date.now()}`;
+    await page.getByRole("button", { name: "Add Student" }).click();
     await page.getByPlaceholder("Jordan Lee").fill(name);
     await page.locator('input[type="date"]').first().fill("2026-04-01");
     await page.getByRole("button", { name: "Create student" }).click();

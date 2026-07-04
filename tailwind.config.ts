@@ -1,10 +1,15 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * Tailwind only emits CSS for class names found under `content`. If the UI suddenly
+ * looks unstyled (plain HTML), the usual cause is an overly narrow `content` glob or
+ * new folders outside these paths — fix the globs and run `npm run verify:tailwind`.
+ */
 export default {
+  darkMode: "class",
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{js,ts,jsx,tsx,mjs,cjs,mdx}",
+    "./src/**/*.css",
   ],
   theme: {
     extend: {
